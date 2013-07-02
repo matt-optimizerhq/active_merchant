@@ -218,6 +218,15 @@ class SkipJackTest < Test::Unit::TestCase
     assert_equal "1.0000", response.params["TransactionAmount"]
   end
 
+  def test_dont_send_blank_state  
+    @billing_address[:state] = nil
+    @shipping_address[:state] = nil
+    @options[:billing_address] = @billing_address
+    @options[:shipping_address] = @shipping_address
+    @gateway.send(:add_address, post = {}, @options)
+    assert_not_nil post[:State], post[:ShipToState]
+  end
+
   private
   def successful_authorization_response
     <<-CSV

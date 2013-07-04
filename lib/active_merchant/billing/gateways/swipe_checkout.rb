@@ -1,4 +1,5 @@
 require 'json'
+require 'pp'
 
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
@@ -13,12 +14,12 @@ module ActiveMerchant #:nodoc:
 
       self.homepage_url = 'https://www.swipehq.com/checkout'
       self.display_name = 'Swipe Checkout'
+      self.money_format = :dollars
 
-      # options can be accessed later through the instance variable @options
+      # Note: options can be accessed later through the instance variable @options
       # (superclass initializer sets this)
       def initialize(options = {})
-        #puts "initialize called with options #{options}"
-        requires!(options, :login, :password)
+        requires!(options, :login, :api_key)
         super
       end
 
@@ -26,8 +27,8 @@ module ActiveMerchant #:nodoc:
         post = {}
         add_invoice(post, options)
         add_creditcard(post, creditcard)
-        add_address(post, creditcard, options)
-        add_customer_data(post, options)
+        add_customer_data(post, creditcard, options)
+        add_amount(post, money, options)
 
         commit('authonly', money, post)
       end
@@ -36,8 +37,8 @@ module ActiveMerchant #:nodoc:
         post = {}
         add_invoice(post, options)
         add_creditcard(post, creditcard)
-        add_address(post, creditcard, options)
-        add_customer_data(post, options)
+        add_customer_data(post, creditcard, options)
+        add_amount(post, money, options)
 
         commit('sale', money, post)
       end
@@ -46,40 +47,60 @@ module ActiveMerchant #:nodoc:
         commit('capture', money, post)
       end
 
+      # ======================================================================
       private
 
-      def add_customer_data(post, options)
+      def add_customer_data(post, creditcard, options)
+        post[:td_email] = options[:email]
+
+        address = options[:billing_address] || options[:address]
+        return if address.nil?
+
+        post[:td_company] = address[:company]
+        post[:td_first_name] = address[:name]   # stub
+        #post[:td_last_name] = "test"
+        post[:td_address] = "#{address[:address1]}, #{address[:address2]}"
+        post[:td_city] = address[:city]
+        post[:td_country] = address[:country]
+        post[:td_phone] = address[:phone]
+
       end
 
-      def add_address(post, creditcard, options)
-      end
-
+      # add any details about the product or service being paid for
       def add_invoice(post, options)
+          post[:td_item] = options[:description]
       end
 
       def add_creditcard(post, creditcard)
+        # add credit card no, expiry...
       end
 
-      def parse(body)
-        JSON.parse(body)
+      def add_amount(post, money, options)
+        post[:td_amount] = money.to_s
+
+        # TODO: convert to 3 digit country codes supported by Swipe
+        two_digit_cc = options[:currency] || currency(money)
+        post[:td_currency] = two_digit_cc
       end
+
 
       def commit(action, money, parameters)
-        puts "commit() called with action=#{action}, money=#{money}, parameters=#{parameters}"
+        #puts "commit() called with action=#{action}, money=#{money}, parameters=#{parameters}"
         case action
         when "sale"
-          url_params = {
-            :merchant_id       => "1234",
-            :api_key           => "123",
-            :td_amount         => money.to_s
-          }
+          parameters[:merchant_id]      = @options[:login]
+          parameters[:api_key]          = @options[:api_key]
+
+          puts "parameters ="
+          pp(parameters)
+
           # converts a hash to URL parameters (merchant_id=1234&api_key=...)
-          url_params_encoded = url_params.to_query
-          puts url_params_encoded
+          encoded_params = parameters.to_query
+          #puts encoded_params
 
           # build complete URL
-          url = "#{test_url}/createTransactionIdentifier.php?#{url_params_encoded}"
-          puts url
+          url = "#{test_url}/createTransactionIdentifier.php?#{encoded_params}"
+          puts "full URL = #{url}"
 
           begin
             # passing nil for POST data
@@ -113,6 +134,10 @@ module ActiveMerchant #:nodoc:
             "message" => msg
           }
         }
+      end
+
+      def parse(body)
+        JSON.parse(body)
       end
 
       def message_from(response)

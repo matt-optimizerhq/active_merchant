@@ -7,8 +7,8 @@ class RemoteSwipeCheckoutTest < Test::Unit::TestCase
     @gateway = SwipeCheckoutGateway.new(fixtures(:swipe_checkout))
 
     @amount = 100
-    @credit_card = credit_card('4000100011112224')
-    @declined_card = credit_card('4000300011112220')
+    @credit_card = credit_card('1234123412341234')
+    @declined_card = credit_card('1111111111111111')
 
     @options = {
       :order_id => '1',

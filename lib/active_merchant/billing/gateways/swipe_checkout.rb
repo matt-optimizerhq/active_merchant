@@ -23,16 +23,6 @@ module ActiveMerchant #:nodoc:
         super
       end
 
-      def authorize(money, creditcard, options = {})
-        post = {}
-        add_invoice(post, options)
-        add_creditcard(post, creditcard)
-        add_customer_data(post, creditcard, options)
-        add_amount(post, money, options)
-
-        commit('authonly', money, post)
-      end
-
       def purchase(money, creditcard, options = {})
         post = {}
         add_invoice(post, options)
@@ -41,10 +31,6 @@ module ActiveMerchant #:nodoc:
         add_amount(post, money, options)
 
         commit('sale', money, post)
-      end
-
-      def capture(money, authorization, options = {})
-        commit('capture', money, post)
       end
 
       # ======================================================================
@@ -105,7 +91,7 @@ module ActiveMerchant #:nodoc:
           begin
             # passing nil for POST data
             # ssl_post() returns the response body as a string on success,
-            # or raise a ResponseError exception
+            # or raises a ResponseError exception on failure
             response = ssl_post(url, nil)
             puts response
 
@@ -122,7 +108,7 @@ module ActiveMerchant #:nodoc:
         end
       end
 
-      # MC: I'm guessing the hash returned from this conforms to a format expected by
+      # MC: Assuming the hash returned from this conforms to a format expected by
       # users of the commit() method...
       def json_error(raw_response)
         msg = 'Invalid response received from the Swipe Checkout API. ' +

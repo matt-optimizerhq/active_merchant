@@ -6,8 +6,12 @@ module ActiveMerchant #:nodoc:
     class SwipeCheckoutGateway < Gateway
       self.live_url = self.test_url = 'https://api.swipehq.com'
 
-      # The countries the gateway supports merchants from as 2 digit ISO country codes
-      self.supported_countries = ['NZ']
+      # The countries the gateway supports merchants from as 2 digit ISO country codes.
+      # Swipe Checkout currently allows merchant signups from New Zealand and Canada.
+      # MC: not sure if this directly maps to supported currencies in applications
+      self.supported_countries = %w[ NZ CA ]
+
+      self.default_currency = 'NZD'
 
       # The card types supported by the payment gateway
       self.supported_cardtypes = [:visa, :master]
@@ -16,13 +20,16 @@ module ActiveMerchant #:nodoc:
       self.display_name = 'Swipe Checkout'
       self.money_format = :dollars
 
-      # Note: options can be accessed later through the instance variable @options
-      # (superclass initializer sets this)
+      # Swipe Checkout requires the merchant's email and API key for authorization.
+      # (STUB)...
       def initialize(options = {})
+        # MC: Note: options can be accessed later through the instance variable @options
+        # (superclass initializer sets this)
         requires!(options, :login, :api_key)
         super
       end
 
+      # Transfers funds immediately
       def purchase(money, creditcard, options = {})
         post = {}
         add_invoice(post, options)
@@ -33,7 +40,7 @@ module ActiveMerchant #:nodoc:
         commit('sale', money, post)
       end
 
-      # Swipe Checkout does not yet support authorize, capture, refund etc.
+      # NOTE: Swipe Checkout does not yet support authorize, capture, refund etc.
 
       # ======================================================================
       private
@@ -68,12 +75,13 @@ module ActiveMerchant #:nodoc:
       def add_creditcard(post, creditcard)
         post[:card] = creditcard.number
         post[:card_type] = creditcard.brand
-        post[:name_on_card] = "#{creditcard.first_name} {#creditcard.last_name}"
+        post[:name_on_card] = "#{creditcard.first_name} #{creditcard.last_name}"
         post[:expiry_date] = expdate(creditcard)
         post[:secure_number] = creditcard.verification_value
       end
 
-      # Helper for formatting expiry dates (source: blue_pay.rb)
+      # Helper for formatting CC expiry dates as MMDD
+      # (source: blue_pay.rb)
       def expdate(creditcard)
         year  = format(creditcard.year, :two_digits)
         month = format(creditcard.month, :two_digits)
@@ -82,11 +90,11 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_amount(post, money, options)
-        post[:td_amount] = money.to_s
+        post[:amount] = money.to_s
 
-        # TODO: convert to 3 digit country codes supported by Swipe
+        # TODO convert 2 digit country codes to 3 digits, as supported by Swipe
         two_digit_cc = options[:currency] || currency(money)
-        post[:td_currency] = two_digit_cc
+        post[:currency] = two_digit_cc
       end
 
       def commit(action, money, parameters)

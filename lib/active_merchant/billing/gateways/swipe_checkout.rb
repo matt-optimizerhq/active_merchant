@@ -33,32 +33,52 @@ module ActiveMerchant #:nodoc:
         commit('sale', money, post)
       end
 
+      # Swipe Checkout does not yet support authorize, capture, refund etc.
+
       # ======================================================================
       private
 
       def add_customer_data(post, creditcard, options)
-        post[:td_email] = options[:email]
+        post[:email] = options[:email]
+        post[:ip_address] = options[:ip]
 
         address = options[:billing_address] || options[:address]
         return if address.nil?
 
-        post[:td_company] = address[:company]
-        post[:td_first_name] = address[:name]   # stub
-        #post[:td_last_name] = "test"
-        post[:td_address] = "#{address[:address1]}, #{address[:address2]}"
-        post[:td_city] = address[:city]
-        post[:td_country] = address[:country]
-        post[:td_phone] = address[:phone]
+        post[:company] = address[:company]
+        post[:first_name] = address[:name]   # stub
+        post[:last_name] = "test"             # stub
+        post[:address] = "#{address[:address1]}, #{address[:address2]}"
+        post[:city] = address[:city]
+        post[:country] = address[:country]
+        post[:mobile] = address[:phone]     # stub
 
       end
 
       # add any details about the product or service being paid for
       def add_invoice(post, options)
-          post[:td_item] = options[:description]
+        # store Shopify order ID in Swipe for merchant's records
+        post[:user_data] = options[:order_id]
+        post[:item] = options[:description]
+        post[:description] = options[:description]
+        post[:quantity] = "1"
       end
 
+      # add credit card no, expiry, CVV, ...
       def add_creditcard(post, creditcard)
-        # add credit card no, expiry...
+        post[:card] = creditcard.number
+        post[:card_type] = creditcard.brand
+        post[:name_on_card] = "#{creditcard.first_name} {#creditcard.last_name}"
+        post[:expiry_date] = expdate(creditcard)
+        post[:secure_number] = creditcard.verification_value
+      end
+
+      # Helper for formatting expiry dates (source: blue_pay.rb)
+      def expdate(creditcard)
+        year  = format(creditcard.year, :two_digits)
+        month = format(creditcard.month, :two_digits)
+
+        "#{month}#{year}"
       end
 
       def add_amount(post, money, options)
@@ -68,7 +88,6 @@ module ActiveMerchant #:nodoc:
         two_digit_cc = options[:currency] || currency(money)
         post[:td_currency] = two_digit_cc
       end
-
 
       def commit(action, money, parameters)
         #puts "commit() called with action=#{action}, money=#{money}, parameters=#{parameters}"
@@ -81,18 +100,19 @@ module ActiveMerchant #:nodoc:
           pp(parameters)
 
           # converts a hash to URL parameters (merchant_id=1234&api_key=...)
-          encoded_params = parameters.to_query
-          #puts encoded_params
+          #encoded_params = parameters.to_query
+          encoded_params = post_data(action, parameters)
+          puts "encoded_params = #{encoded_params}"
 
           # build complete URL
-          url = "#{test_url}/createTransactionIdentifier.php?#{encoded_params}"
+          url = "#{test_url}/createShopifyTransaction.php"
+          #url = "https://www.swipehq.com/lpn/lpn_test.php"
           puts "full URL = #{url}"
 
           begin
-            # passing nil for POST data
             # ssl_post() returns the response body as a string on success,
             # or raises a ResponseError exception on failure
-            response = ssl_post(url, nil)
+            response = ssl_post(url, encoded_params)
             puts response
 
             # JSON parse the response body
@@ -129,7 +149,10 @@ module ActiveMerchant #:nodoc:
       def message_from(response)
       end
 
-      def post_data(action, parameters = {})
+      # Returns params as URL-encoded form data for passing to Swipe gateway API
+      # via HTTP POST
+      def post_data(action, params = {})
+        params.collect { |key, value| "#{key}=#{CGI.escape(value.to_s)}" }.join("&")
       end
     end
   end

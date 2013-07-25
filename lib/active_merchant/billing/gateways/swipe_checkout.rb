@@ -5,11 +5,12 @@ module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
     class SwipeCheckoutGateway < Gateway
       self.live_url = self.test_url = 'https://api.swipehq.com'
+      self.test_url = 'http://10.1.1.88/mattc/hg/billing.swipehq.com/api'
 
       # The countries the gateway supports merchants from as 2 digit ISO country codes.
       # Swipe Checkout currently allows merchant signups from New Zealand and Canada.
       # MC: not sure if this directly maps to supported currencies in applications
-      self.supported_countries = %w[ NZ CA ]
+      self.supported_countries = %w[ NZ ]
 
       self.default_currency = 'NZD'
 
@@ -65,23 +66,22 @@ module ActiveMerchant #:nodoc:
       # add any details about the product or service being paid for
       def add_invoice(post, options)
         # store Shopify order ID in Swipe for merchant's records
-        post[:user_data] = options[:order_id]
-        post[:item] = options[:description]
-        post[:description] = options[:description]
-        post[:quantity] = "1"
+        post[:td_user_data] = options[:order_id]
+        post[:td_item] = options[:description]
+        post[:td_description] = options[:description]
+        post[:item_quantity] = "1"
       end
 
       # add credit card no, expiry, CVV, ...
       def add_creditcard(post, creditcard)
-        post[:card] = creditcard.number
+        post[:card_number] = creditcard.number
         post[:card_type] = creditcard.brand
         post[:name_on_card] = "#{creditcard.first_name} #{creditcard.last_name}"
-        post[:expiry_date] = expdate(creditcard)
+        post[:card_expiry] = expdate(creditcard)
         post[:secure_number] = creditcard.verification_value
       end
 
-      # Helper for formatting CC expiry dates as MMDD
-      # (source: blue_pay.rb)
+      # Formats expiry dates as MMDD (source: blue_pay.rb)
       def expdate(creditcard)
         year  = format(creditcard.year, :two_digits)
         month = format(creditcard.month, :two_digits)
@@ -101,20 +101,20 @@ module ActiveMerchant #:nodoc:
         #puts "commit() called with action=#{action}, money=#{money}, parameters=#{parameters}"
         case action
         when "sale"
-          parameters[:merchant_id]      = @options[:login]
-          parameters[:api_key]          = @options[:api_key]
+          parameters[:merchant_id] = @options[:login]
+          parameters[:api_key] = @options[:api_key]
 
           puts "parameters ="
           pp(parameters)
 
           # converts a hash to URL parameters (merchant_id=1234&api_key=...)
-          #encoded_params = parameters.to_query
-          encoded_params = post_data(action, parameters)
+          encoded_params = parameters.to_query
+          #encoded_params = post_data(action, parameters)
           puts "encoded_params = #{encoded_params}"
+          puts "parameters.to_query = #{parameters.to_query}"
 
           # build complete URL
           url = "#{test_url}/createShopifyTransaction.php"
-          #url = "https://www.swipehq.com/lpn/lpn_test.php"
           puts "full URL = #{url}"
 
           begin

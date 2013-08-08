@@ -125,7 +125,7 @@ module ActiveMerchant #:nodoc:
 
             # JSON parse the response body
             response_json = parse(response)
-            puts response_json.to_s
+            puts "response = #{response_json.to_s}"
           rescue ResponseError => e
             raw_response = e.response.body
             puts "ssl_post() with url #{url} raised ResponseError: #{e}"

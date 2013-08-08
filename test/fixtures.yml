@@ -210,6 +210,11 @@ merchant_ware:
  password:
  name:
 
+merchant_ware_version_four:
+ login:
+ password:
+ name:
+
 merchant_warrior:
   merchant_uuid: '50c5b9f0b52ea'
   api_key: '8fr3ajm7'
@@ -217,8 +222,13 @@ merchant_warrior:
 
 # Working credentials, no need to replace
 mercury:
+  login: '395347306=TOKEN'
+  password: '123TOKEN'
+
+mercury_no_tokenization:
   login: '595901'
   password: 'xyz'
+  tokenization: false
 
 metrics_global:
   login: 'demo'
@@ -568,6 +578,7 @@ spreedly_core:
 
 stripe:
   login:
+  fee_refund_login:
 
 trans_first:
   login: LOGIN

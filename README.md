@@ -1,4 +1,6 @@
 # Active Merchant
+[![Build Status](https://secure.travis-ci.org/Shopify/active_merchant.png)](http://travis-ci.org/Shopify/active_merchant)
+[![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/Shopify/active_merchant)
 
 Active Merchant is an extraction from the e-commerce system [Shopify](http://www.shopify.com).
 Shopify's requirements for a simple and unified API to access dozens of different payment
@@ -195,6 +197,7 @@ The [ActiveMerchant Wiki](http://github.com/Shopify/active_merchant/wikis) conta
 * [Paxum](https://www.paxum.com/)
 * [PayPal Website Payments Standard](https://www.paypal.com/cgi-bin/webscr?cmd#_wp-standard-overview-outside)
 * [Paysbuy](https://www.paysbuy.com/) - TH
+* [Platron](https://www.platron.ru/) - RU
 * [RBK Money](https://rbkmoney.ru/) - RU
 * [Robokassa](http://robokassa.ru/) - RU
 * [SagePay Form](http://www.sagepay.com/products_services/sage_pay_go/integration/form)
@@ -216,7 +219,3 @@ information on adding a new gateway to ActiveMerchant.
 
 Please don't touch the CHANGELOG in your pull requests, we'll add the appropriate CHANGELOG entries
 at release time.
-
-[![Build Status](https://secure.travis-ci.org/Shopify/active_merchant.png)](http://travis-ci.org/Shopify/active_merchant)
-
-[![Code Climate](https://codeclimate.com/badge.png)](https://codeclimate.com/github/Shopify/active_merchant)

@@ -7,13 +7,21 @@ module ActiveMerchant #:nodoc:
       TRANSACTION_APPROVED_MSG = 'Transaction approved'
       TRANSACTION_DECLINED_MSG = 'Transaction declined'
 
-      self.live_url = 'https://api.swipehq.com'
+      LIVE_URLS = {
+        :NZD => 'https://api.swipehq.com',
+        :CAD => 'https://api.swipehq.ca'
+      }
+
       self.test_url = 'http://10.1.1.88/mattc/hg/billing.swipehq.com/api'
+
+      TRANSACTION_API = '/createShopifyTransaction.php'
 
       # The countries the gateway supports merchants from as 2 digit ISO country codes.
       # Swipe Checkout currently allows merchant signups from New Zealand and Canada.
-      # MC: not sure if this directly maps to supported currencies in applications
       self.supported_countries = %w[ NZ CA ]
+
+      # TODO throw a SwipeCheckoutException if purchase currency isn't in this list
+      SUPPORTED_CURRENCIES = %w[ AUD CAD EUR GBP KRW SGD CNY USD ZAR HKD JPY ]
 
       self.default_currency = 'NZD'
 
@@ -25,7 +33,6 @@ module ActiveMerchant #:nodoc:
       self.money_format = :dollars
 
       # Swipe Checkout requires the merchant's email and API key for authorization.
-      # (STUB)...
       def initialize(options = {})
         # MC: Note: options can be accessed later through the instance variable @options
         # (superclass initializer sets this)
@@ -63,7 +70,6 @@ module ActiveMerchant #:nodoc:
         post[:city] = address[:city]
         post[:country] = address[:country]
         post[:mobile] = address[:phone]     # stub
-
       end
 
       # add any details about the product or service being paid for
@@ -94,10 +100,10 @@ module ActiveMerchant #:nodoc:
 
       def add_amount(post, money, options)
         post[:amount] = money.to_s
-
-        # TODO convert 2 digit country codes to 3 digits, as supported by Swipe
-        two_digit_cc = options[:currency] || currency(money)
-        post[:currency] = two_digit_cc
+        
+        # Assuming ISO_3166-1 (3 character) currency code
+        # TODO: confirm this
+        post[:currency] = options[:currency] || currency(money)
       end
 
       def commit(action, money, parameters)
@@ -106,6 +112,11 @@ module ActiveMerchant #:nodoc:
         when "sale"
           parameters[:merchant_id] = @options[:login]
           parameters[:api_key] = @options[:api_key]
+
+          # Which swipe domain to use (currently can be either NZ or CA).
+          # Merchant IDs are specific to a swipe domain; login will fail
+          # if the wrong one is selected
+          domain = @options[:domain] ? @options[:domain] : 'NZD'
 
           #puts "parameters ="
           #pp(parameters)
@@ -117,7 +128,8 @@ module ActiveMerchant #:nodoc:
           #puts "parameters.to_query = #{parameters.to_query}"
 
           # build complete URL
-          url = "#{test_url}/createShopifyTransaction.php"
+          base_url = (test?) ? self.test_url : LIVE_URLS[domain]
+          url = base_url + TRANSACTION_API
           #puts "full URL = #{url}"
 
           begin

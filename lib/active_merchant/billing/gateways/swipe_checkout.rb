@@ -4,6 +4,9 @@ require 'pp'
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
     class SwipeCheckoutGateway < Gateway
+      TRANSACTION_APPROVED_MSG = 'Transaction approved'
+      TRANSACTION_DECLINED_MSG = 'Transaction declined'
+
       self.live_url = 'https://api.swipehq.com'
       self.test_url = 'http://10.1.1.88/mattc/hg/billing.swipehq.com/api'
 
@@ -41,7 +44,7 @@ module ActiveMerchant #:nodoc:
         commit('sale', money, post)
       end
 
-      # NOTE: Swipe Checkout does not yet support authorize, capture, refund etc.
+      # NOTE: Swipe Checkout only supports purchase at this stage
 
       # ======================================================================
       private
@@ -135,10 +138,12 @@ module ActiveMerchant #:nodoc:
 
             if code == 200  # OK
               result = response["data"]["result"]
-              success = result == 'accepted'
+              success = result == 'accepted' || (test? && result == 'test-accepted')
 
               Response.new(success,
-                           message,
+                           success ?
+                           TRANSACTION_APPROVED_MSG :
+                           TRANSACTION_DECLINED_MSG,
                            response,
                            :test => test?)
             else
@@ -173,9 +178,6 @@ module ActiveMerchant #:nodoc:
 
       def parse(body)
         JSON.parse(body)
-      end
-
-      def message_from(response)
       end
     end
   end

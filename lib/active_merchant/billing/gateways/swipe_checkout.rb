@@ -4,7 +4,7 @@ require 'pp'
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
     class SwipeCheckoutGateway < Gateway
-      self.live_url = self.test_url = 'https://api.swipehq.com'
+      self.live_url = 'https://api.swipehq.com'
       self.test_url = 'http://10.1.1.88/mattc/hg/billing.swipehq.com/api'
 
       # The countries the gateway supports merchants from as 2 digit ISO country codes.
@@ -104,28 +104,49 @@ module ActiveMerchant #:nodoc:
           parameters[:merchant_id] = @options[:login]
           parameters[:api_key] = @options[:api_key]
 
-          puts "parameters ="
-          pp(parameters)
+          #puts "parameters ="
+          #pp(parameters)
 
           # converts a hash to URL parameters (merchant_id=1234&api_key=...)
           encoded_params = parameters.to_query
           #encoded_params = post_data(action, parameters)
-          puts "encoded_params = #{encoded_params}"
-          puts "parameters.to_query = #{parameters.to_query}"
+          #puts "encoded_params = #{encoded_params}"
+          #puts "parameters.to_query = #{parameters.to_query}"
 
           # build complete URL
           url = "#{test_url}/createShopifyTransaction.php"
-          puts "full URL = #{url}"
+          #puts "full URL = #{url}"
 
           begin
             # ssl_post() returns the response body as a string on success,
             # or raises a ResponseError exception on failure
             response = ssl_post(url, encoded_params)
-            puts response
+            #puts response
 
             # JSON parse the response body
             response_json = parse(response)
-            puts "response = #{response_json.to_s}"
+            #puts "response = #{response_json.to_s}"
+
+            # response code and message params should always be present
+            code = response_json["response_code"]
+            message = response_json["message"]
+
+            #puts "test = #{test?}"
+
+            if code == 200
+              result = response_json["data"]["result"]
+              success = result == 'accepted'
+
+              Response.new(success,
+                           message,
+                           response_json,
+                           :test => test?)
+            else
+              Response.new(false,
+                           message,
+                           response_json,
+                           :test => test?)
+            end
           rescue ResponseError => e
             raw_response = e.response.body
             puts "ssl_post() with url #{url} raised ResponseError: #{e}"
@@ -157,11 +178,11 @@ module ActiveMerchant #:nodoc:
       def message_from(response)
       end
 
-      # Returns params as URL-encoded form data for passing to Swipe gateway API
-      # via HTTP POST
-      def post_data(action, params = {})
-        params.collect { |key, value| "#{key}=#{CGI.escape(value.to_s)}" }.join("&")
-      end
+#      # Returns params as URL-encoded form data for passing to Swipe gateway API
+#      # via HTTP POST
+#      def post_data(action, params = {})
+#        params.collect { |key, value| "#{key}=#{CGI.escape(value.to_s)}" }.join("&")
+#      end
     end
   end
 end

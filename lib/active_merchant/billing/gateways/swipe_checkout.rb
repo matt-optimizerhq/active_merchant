@@ -10,7 +10,7 @@ module ActiveMerchant #:nodoc:
       # The countries the gateway supports merchants from as 2 digit ISO country codes.
       # Swipe Checkout currently allows merchant signups from New Zealand and Canada.
       # MC: not sure if this directly maps to supported currencies in applications
-      self.supported_countries = %w[ NZ ]
+      self.supported_countries = %w[ NZ CA ]
 
       self.default_currency = 'NZD'
 
@@ -120,31 +120,31 @@ module ActiveMerchant #:nodoc:
           begin
             # ssl_post() returns the response body as a string on success,
             # or raises a ResponseError exception on failure
-            response = ssl_post(url, encoded_params)
+            response_text = ssl_post(url, encoded_params)
             #puts response
 
             # JSON parse the response body
-            response_json = parse(response)
+            response = parse(response_text)
             #puts "response = #{response_json.to_s}"
 
             # response code and message params should always be present
-            code = response_json["response_code"]
-            message = response_json["message"]
+            code = response["response_code"]
+            message = response["message"]
 
             #puts "test = #{test?}"
 
-            if code == 200
-              result = response_json["data"]["result"]
+            if code == 200  # OK
+              result = response["data"]["result"]
               success = result == 'accepted'
 
               Response.new(success,
                            message,
-                           response_json,
+                           response,
                            :test => test?)
             else
               Response.new(false,
                            message,
-                           response_json,
+                           response,
                            :test => test?)
             end
           rescue ResponseError => e
@@ -177,12 +177,6 @@ module ActiveMerchant #:nodoc:
 
       def message_from(response)
       end
-
-#      # Returns params as URL-encoded form data for passing to Swipe gateway API
-#      # via HTTP POST
-#      def post_data(action, params = {})
-#        params.collect { |key, value| "#{key}=#{CGI.escape(value.to_s)}" }.join("&")
-#      end
     end
   end
 end

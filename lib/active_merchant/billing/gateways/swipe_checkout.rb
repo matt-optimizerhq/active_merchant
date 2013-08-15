@@ -8,8 +8,8 @@ module ActiveMerchant #:nodoc:
       TRANSACTION_DECLINED_MSG = 'Transaction declined'
 
       LIVE_URLS = {
-        :NZD => 'https://api.swipehq.com',
-        :CAD => 'https://api.swipehq.ca'
+        'NZD' => 'https://api.swipehq.com',
+        'CAD' => 'https://api.swipehq.ca'
       }
 
       self.test_url = 'http://10.1.1.88/mattc/hg/billing.swipehq.com/api'
@@ -64,12 +64,13 @@ module ActiveMerchant #:nodoc:
         return if address.nil?
 
         post[:company] = address[:company]
-        post[:first_name] = address[:name]   # stub
-        post[:last_name] = "test"             # stub
+
+        # groups all names after the first into the last name param
+        post[:first_name], post[:last_name] = address[:name].split(' ', 2)
         post[:address] = "#{address[:address1]}, #{address[:address2]}"
         post[:city] = address[:city]
         post[:country] = address[:country]
-        post[:mobile] = address[:phone]     # stub
+        post[:mobile] = address[:phone]     # API only has a "mobile" field, no "phone"
       end
 
       # add any details about the product or service being paid for
@@ -129,8 +130,10 @@ module ActiveMerchant #:nodoc:
 
           # build complete URL
           base_url = (test?) ? self.test_url : LIVE_URLS[domain]
+          #base_url = LIVE_URLS[domain]    # test against live
           url = base_url + TRANSACTION_API
-          #puts "full URL = #{url}"
+          #puts "\nfull URL = #{url}"
+          #puts "\nencoded params = #{encoded_params}"
 
           begin
             # ssl_post() returns the response body as a string on success,

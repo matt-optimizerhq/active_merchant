@@ -15,7 +15,7 @@ module ActiveMerchant #:nodoc:
         'CA' => 'https://api.swipehq.ca'
       }
 
-      self.test_url = 'http://10.1.1.88/mattc/hg/billing.swipehq.com/api'
+      self.test_url = 'https://api.swipehq.com'
 
       TRANSACTION_API = '/createShopifyTransaction.php'
 

@@ -183,8 +183,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def get_base_url(region)
-        #(test?) ? self.test_url : LIVE_URLS[region]
-        url = LIVE_URLS[region]   # temp: live test
+        (test?) ? self.test_url : LIVE_URLS[region]
       end
 
       # Returns whether a currency is valid for this merchant.

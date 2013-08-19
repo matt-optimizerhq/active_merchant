@@ -24,7 +24,7 @@ module ActiveMerchant #:nodoc:
       self.display_name = 'SecureNet'
 
       self.test_url = 'https://certify.securenet.com/API/gateway.svc/webHttp/ProcessTransaction'
-      self.live_url = 'https://gateway.securenet.com/api/Gateway.svc'
+      self.live_url = 'https://gateway.securenet.com/api/Gateway.svc/webHttp/ProcessTransaction'
 
       APPROVED, DECLINED = 1, 2
 
@@ -65,12 +65,12 @@ module ActiveMerchant #:nodoc:
       private
       def commit(request)
         xml = build_request(request)
-        data = ssl_post(self.test_url, xml, "Content-Type" => "text/xml")
+        url = test? ? self.test_url : self.live_url
+        data = ssl_post(url, xml, "Content-Type" => "text/xml")
         response = parse(data)
 
-        test_mode = test?
         Response.new(success?(response), message_from(response), response,
-          :test => test_mode,
+          :test => test?,
           :authorization => build_authorization(response),
           :avs_result => { :code => response[:avs_result_code] },
           :cvv_result => response[:card_code_response_code]
@@ -207,7 +207,7 @@ module ActiveMerchant #:nodoc:
 
       def add_more_required_params(xml, options)
         xml.tag! 'RETAIL_LANENUM', '0'
-        xml.tag! 'TEST', 'TRUE'
+        xml.tag! 'TEST', 'TRUE' if test?
         xml.tag! 'TOTAL_INSTALLMENTCOUNT', 0
         xml.tag! 'TRANSACTION_SERVICE', 0
       end

@@ -36,6 +36,12 @@ class RemoteSwipeCheckoutTest < Test::Unit::TestCase
     assert_equal 'Transaction declined', response.message
   end
 
+  def test_purchase_with_unsupported_currency
+    assert response = @gateway.purchase(@amount, @accepted_card, @options.merge(:currency => 'FJD'))
+    assert_failure response
+    assert_equal 'Unsupported currency "FJD"', response.message
+  end
+
   def test_invalid_login
     gateway = SwipeCheckoutGateway.new(
                 :login => 'invalid',
@@ -68,11 +74,5 @@ class RemoteSwipeCheckoutTest < Test::Unit::TestCase
     assert_success response
     #assert_equal 'Invalid card data', response.message
     #assert_equal 303, response.params['response_code']
-  end
-
-  def test_get_supported_currencies
-    expected_currencies = %w[ NZD AUD CAD CNY EUR GBP HKD JPY SGD ZAR KRW USD ]
-    actual_currencies = @gateway.get_supported_currencies
-    assert_equal expected_currencies, actual_currencies
   end
 end

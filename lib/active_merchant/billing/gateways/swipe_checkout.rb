@@ -1,13 +1,15 @@
 require 'json'
-require 'pp'
 
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
+    # Swipe Checkout is an e-commerce gateway currently available to New Zealand and
+    # Canadian customers merchants.
+    # For more information please visit https://www.swipehq.com
     class SwipeCheckoutGateway < Gateway
       TRANSACTION_APPROVED_MSG = 'Transaction approved'
       TRANSACTION_DECLINED_MSG = 'Transaction declined'
 
-      # by region
+      # Swipe Checkout live URL by region
       LIVE_URLS = {
         'NZ' => 'https://api.swipehq.com',
         'CA' => 'https://api.swipehq.ca'
@@ -17,21 +19,21 @@ module ActiveMerchant #:nodoc:
 
       TRANSACTION_API = '/createShopifyTransaction.php'
 
-      # used to find the currencies a merchant can accept payments in,
-      # which depends on the gateway/bank they're using
-      # TODO expand on this
+      # This API is used to find the currencies a merchant can accept payments in,
+      # which depends on the underlying gateway/bank they're using in their region.
+      # In NZ, the only underlying gateway currently available is BNZ which supports
+      # AUD CAD CNY EUR GBP HKD JPY KRW NZD SGD USD ZAR.
+      # In Canada merchants can choose between multiple back-end gateways so the
+      # set of available currencies can vary (hence the need for this API).
       CURRENCIES_API = '/fetchCurrencyCodes.php'
 
       # The countries the gateway supports merchants from as 2 digit ISO country codes.
       # Swipe Checkout currently allows merchant signups from New Zealand and Canada.
       self.supported_countries = %w[ NZ CA ]
 
-      # TODO throw a SwipeCheckoutException if purchase currency isn't in this list
-      SUPPORTED_CURRENCIES = %w[ AUD CAD CNY EUR GBP HKD JPY KRW NZD SGD USD ZAR ]
-
       self.default_currency = 'NZD'
 
-      # The card types supported by the payment gateway
+      # Swipe Checkout supports Visa and Mastercard
       self.supported_cardtypes = [:visa, :master]
 
       self.homepage_url = 'https://www.swipehq.com/checkout'
@@ -39,15 +41,14 @@ module ActiveMerchant #:nodoc:
       self.money_format = :dollars
 
       # Swipe Checkout requires the merchant's email and API key for authorization.
-      # This can be found under Settings > API Credentials in your Swipe Checkout
-      # merchant console.
+      # This can be found under Settings > API Credentials after logging in to your
+      # Swipe Checkout merchant console at https://merchant.swipehq.[com|ca]
       #
-      # :region specifies which swipe domain to use (currently can be either NZ or CA).
-      # Note that Merchant IDs are specific to a swipe domain - login will fail
-      # if the wrong one is selected
+      # :region determines which Swipe URL is used, this can be one of "NZ" or "CA".
+      # Currently Swipe Checkout has New Zealand and Canadian domains (swipehq.com
+      # and swipehq.ca respectively). Merchants must use the region that they
+      # signed up in for authentication with their merchant ID and API key to succeed.
       def initialize(options = {})
-        # MC: Note: options can be accessed later through the instance variable @options
-        # (superclass initializer sets this)
         requires!(options, :login, :api_key, :region)
         super
       end
@@ -114,7 +115,7 @@ module ActiveMerchant #:nodoc:
       def add_amount(post, money, options)
         post[:amount] = money.to_s
         
-        # Assuming ISO_3166-1 (3 character) currency code (TODO: confirm this)
+        # Assuming ISO_3166-1 (3 character) currency code
         post[:currency] = options[:currency] || currency(money)
       end
 
@@ -122,34 +123,20 @@ module ActiveMerchant #:nodoc:
         case action
         when "sale"
 
-          # make sure currency is supported
-          #if !supported_currency? parameters[:currency]
-          #  return build_error_response("Unsupported currency \"#{parameters[:currency]}\"")
-          #end
-
           begin
-            # make sure currency is supported by merchant
-            response = call_api CURRENCIES_API
-            code = response["response_code"]
-            message = response["message"]
-            if code == 200  # OK
-              supported_currencies = response['data'].values
-              currency = parameters[:currency]
-              if !supported_currencies.include? currency
-                return build_error_response("Unsupported currency \"#{currency}\"", response)
-              end
-            else
-              return build_error_response(message, response)
+            # ensure incoming currency is supported by merchant's selected gateway
+            currency = parameters[:currency]
+            result, error_message = supported_currency? currency
+            if !result
+              return build_error_response(error_message)
             end
             
-            # JSON parse the response body
+            # gets hash of JSON response data
             response = call_api TRANSACTION_API, parameters
 
             # response code and message params should always be present
             code = response["response_code"]
             message = response["message"]
-
-            #puts "test = #{test?}"
 
             if code == 200  # OK
               result = response["data"]["result"]
@@ -176,7 +163,7 @@ module ActiveMerchant #:nodoc:
         end
       end
 
-      # Returns the parsed JSON response from an API call as a hash
+      # Convenience function - returns the parsed JSON response from an API call as a hash
       def call_api(api, params=nil)
         if !params then params = {} end
         params[:merchant_id] = @options[:login]
@@ -184,12 +171,11 @@ module ActiveMerchant #:nodoc:
         region = @options[:region]
         url = get_base_url(region) + api
 
+        #puts "#{url}?#{params.to_query}"
+
         # ssl_post() returns the response body as a string on success,
         # or raises a ResponseError exception on failure
-        #parse( ssl_post( url, params.to_query ) )
-        text = ssl_post( url, params.to_query )
-        #puts "in call_api(#{api}), raw response text = #{text}"
-        parse(text)
+        parse( ssl_post( url, params.to_query ) )
       end
 
       def parse(body)
@@ -197,14 +183,29 @@ module ActiveMerchant #:nodoc:
       end
 
       def get_base_url(region)
-          (test?) ? self.test_url : LIVE_URLS[region]
-          #LIVE_URLS[region]    # test against live
+        #(test?) ? self.test_url : LIVE_URLS[region]
+        url = LIVE_URLS[region]   # temp: live test
       end
 
-#      def supported_currency?(currency_code)
-#        # TODO update to use fetchCurrencies API, remove hard-coded SUPPORTED_CURRENCIES
-#        SUPPORTED_CURRENCIES.include? currency_code
-#      end
+      # Returns whether a currency is valid for this merchant.
+      # Currency should be in ISO 3166-1 (3 character) format
+      # e.g. AUD, JPY
+      def supported_currency?(currency)
+        response = call_api CURRENCIES_API
+        code = response["response_code"]
+        message = response["message"]
+
+        if code == 200  # OK
+          supported_currencies = response['data'].values
+          if !supported_currencies.include? currency
+            [false, "Unsupported currency \"#{currency}\""]
+          else
+            [true, "OK"]
+          end
+        else
+          [false, message]
+        end
+      end
 
       def build_error_response(message, params={})
         Response.new(false,
